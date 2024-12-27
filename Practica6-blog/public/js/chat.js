@@ -1,7 +1,7 @@
 /* console.log('hola mundo'); */
 let id_usuario = userId;
 let id_usuario_receptor;
-
+let intervaloActualizacion;
 let data = [];
 let messages = [];
 let allBotones = document.querySelectorAll('.friend_btn');
@@ -54,27 +54,29 @@ allBotones.forEach(btn => {
             sendButton.className = 'ml-3 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition';
             sendButton.textContent = 'Enviar';
             formElement.appendChild(sendButton);
-            sendButton.addEventListener('click',(e)=>{
+            sendButton.addEventListener('click', (e) => {
                 e.preventDefault();
                 let formElement = document.getElementById('chatForm');
                 let formData = new FormData(formElement);
                 fetch(formElement.action, {
                     method: 'POST',
-                    body: formData  
+                    body: formData
                 })
-                .then(()=>{
-                    document.getElementById('text').value = '';
-                    actualizarDatos();
-                })
-                
-                
-                
-            },false);
+                    .then(() => {
+                        document.getElementById('text').value = '';
+                        actualizarDatos();
+                    })
+
+
+
+            }, false);
 
 
             chatDiv.appendChild(formElement);
             document.getElementById('main').appendChild(chatDiv);
-            actualizarDatos()
+
+            actualizarDatos();
+
         }
     }, false);
 });
@@ -84,31 +86,52 @@ function imprimirDatos() {
 }
 
 async function actualizarDatos() {
+    //depurado por chatgpt
     try {
-        let userDataResponse = await fetch(`index.php?id_receptor=${id_usuario_receptor}`);
-        data = await userDataResponse.json();
-        
-        let userChatMessagesResponse = await fetch(`index.php?id_receptor=${id_usuario_receptor}&id_usuario=${id_usuario}`);
-       
-        let messages = await userChatMessagesResponse.json();     
-        let message_area = document.getElementById('message_area');
-        message_area.innerHTML = "";
-        messages.forEach(message => {
-            console.log(message);
-            const messageDiv = document.createElement('div');
-            if (message['chats_user1_id'] == id_usuario) {
-                messageDiv.className = 'place-self-end bg-blue-500 text-white p-2 rounded-lg max-w-xs m-2';
-            } else {
-                messageDiv.className = 'place-self-start bg-green-500 text-white p-3 rounded-lg max-w-xs';
-            }
-            messageDiv.innerText = message['message'];
-            message_area.appendChild(messageDiv);
+        // Obtener los datos del usuario receptor
+        try {
+            let userDataResponse = await fetch(`index.php?id_receptor=${id_usuario_receptor}`);
+            if (!userDataResponse.ok) throw new Error('Error al obtener los datos del usuario receptor.');
+            let data = await userDataResponse.json();
+            document.getElementById('contact_username').innerText = data['username'];
+        } catch (error) {
+            console.error('Error al actualizar el nombre de usuario:', error);
+        }
+
+        // Obtener mensajes (Long Polling)
+        const response = await fetch(`index.php?id_receptor=${id_usuario_receptor}&id_usuario=${id_usuario}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
         });
 
+        if (!response.ok) throw new Error('Error en la solicitud al servidor.');
 
-        document.getElementById('contact_username').innerText = data['username'];
+        const messages = await response.json();
+        const message_area = document.getElementById('message_area');
+
+        // Actualizar solo si hay cambios
+        if (JSON.stringify(messages) !== message_area.dataset.messages) {
+            message_area.dataset.messages = JSON.stringify(messages); // Guardar los mensajes actuales
+            message_area.innerHTML = ""; // Limpiar el área de mensajes
+
+            messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                if (message['chats_user1_id'] == id_usuario) {
+                    messageDiv.className = 'place-self-end bg-blue-500 text-white p-2 rounded-lg max-w-xs m-2';
+                } else {
+                    messageDiv.className = 'place-self-start bg-green-500 text-white p-3 rounded-lg max-w-xs';
+                }
+                messageDiv.innerText = message['message'];
+                message_area.appendChild(messageDiv);
+            });
+        }
+
+        // Continuar con el Long Polling
+        await actualizarDatos();
     } catch (error) {
+        console.error('Error en actualizarDatos:', error);
 
+        // Reintentar después de un tiempo
+        setTimeout(actualizarDatos, 5000);
     }
-
 }

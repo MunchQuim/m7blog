@@ -1,0 +1,17 @@
+{
+    "name": "joaquimpinsot/practica6-blog",
+    "version": "1.0.0",
+    "autoload": {
+        "psr-4": {
+            "Joaquimpinsot\\Practica6Blog\\": "app/",
+            "models\\": "app/models"
+        }
+    },
+    "authors": [
+        {
+            "name": "munchQuim",
+            "email": "qpinedasotes@gmail.com"
+        }
+    ],
+    "require": {}
+}

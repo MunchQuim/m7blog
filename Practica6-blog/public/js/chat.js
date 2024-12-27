@@ -86,17 +86,17 @@ function imprimirDatos() {
 }
 
 async function actualizarDatos() {
+    
     //depurado por chatgpt
     try {
         // Obtener los datos del usuario receptor
-        try {
+       /*  try {
             let userDataResponse = await fetch(`index.php?id_receptor=${id_usuario_receptor}`);
-            if (!userDataResponse.ok) throw new Error('Error al obtener los datos del usuario receptor.');
             let data = await userDataResponse.json();
             document.getElementById('contact_username').innerText = data['username'];
         } catch (error) {
             console.error('Error al actualizar el nombre de usuario:', error);
-        }
+        } */
 
         // Obtener mensajes (Long Polling)
         const response = await fetch(`index.php?id_receptor=${id_usuario_receptor}&id_usuario=${id_usuario}`, {
@@ -104,9 +104,12 @@ async function actualizarDatos() {
             headers: { 'Content-Type': 'application/json' },
         });
 
-        if (!response.ok) throw new Error('Error en la solicitud al servidor.');
+        /* if (!response.ok) throw new Error('Error en la solicitud al servidor.'); */
 
-        const messages = await response.json();
+        const combined = await response.json();
+        let messages = combined['nuevosMensajes'];
+        let userR = combined['usuarioReceptor'];
+        document.getElementById('contact_username').innerText = userR['username'];
         const message_area = document.getElementById('message_area');
 
         // Actualizar solo si hay cambios
@@ -129,8 +132,7 @@ async function actualizarDatos() {
         // Continuar con el Long Polling
         await actualizarDatos();
     } catch (error) {
-        console.error('Error en actualizarDatos:', error);
-
+        /* console.error('Error en actualizarDatos:', error); */
         // Reintentar después de un tiempo
         setTimeout(actualizarDatos, 5000);
     }

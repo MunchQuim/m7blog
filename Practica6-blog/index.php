@@ -247,39 +247,65 @@ switch ($request) {
 
     // Agregar más casos según sea necesario
 }
-if (isset($_GET['id_receptor']) && !isset($_GET['id_usuario'])) {
+/* if (isset($_GET['id_receptor']) && !isset($_GET['id_usuario'])) {
 
+   
+
+
+} */
+if (isset($_GET['id_receptor']) && isset($_GET['id_usuario'])) {
+    //depurado chatgpt
+    comprobarSesion();
     $user->id = $_GET['id_receptor'];
     $stmt = $user->readById();
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($row) {
-        echo json_encode($row);
-    } else {
-        echo json_encode(['message' => 'User not found']);
-    }
-}
-if (isset($_GET['id_receptor']) && isset($_GET['id_usuario'])) {
-    comprobarSesion();
+    
     if ($_GET['id_usuario'] == $_SESSION['user_id']) {
-        $chat->user1_id = $_GET['id_usuario'];
-        $chat->user2_id = $_GET['id_receptor'];
-        $stmt = $chat->getMessages();
-        $enviados = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $chat->user1_id = $_GET['id_receptor'];
-        $chat->user2_id = $_GET['id_usuario'];
+        $id_usuario = $_GET['id_usuario'];
+        $id_receptor = $_GET['id_receptor'];
+        $ultimoMensajeTimestamp = isset($_GET['last_message_timestamp']) ? $_GET['last_message_timestamp'] : 0;
 
-        $stmt = $chat->getMessages();
-        $recibidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $timeout = 30; // Tiempo máximo para el Long Polling
+        $start_time = time();
 
-        $mensajes = array_merge($enviados, $recibidos);
-        usort($mensajes, function ($a, $b) {
-            return strtotime($a['created_at']) - strtotime($b['created_at']); // Ordenar de menor a mayor fecha
-        });
-        if ($mensajes) {
-            echo json_encode($mensajes);
-        } else {
-            echo json_encode([]);
-        }
+        do {
+            // Obtener mensajes enviados y recibidos
+            $chat->user1_id = $id_usuario;
+            $chat->user2_id = $id_receptor;
+            $stmt = $chat->getMessages();
+            $enviados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $chat->user1_id = $id_receptor;
+            $chat->user2_id = $id_usuario;
+            $stmt = $chat->getMessages();
+            $recibidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Combinar y ordenar los mensajes
+            $mensajes = array_merge($enviados, $recibidos);
+            usort($mensajes, function ($a, $b) {
+                return strtotime($a['created_at']) - strtotime($b['created_at']);
+            });
+
+            // Filtrar mensajes nuevos
+            $nuevosMensajes = array_filter($mensajes, function ($mensaje) use ($ultimoMensajeTimestamp) {
+                return strtotime($mensaje['created_at']) > $ultimoMensajeTimestamp;
+            });
+
+            if (!empty($nuevosMensajes)) {
+                $respuesta = [
+                    'nuevosMensajes' => $nuevosMensajes,
+                    'usuarioReceptor' => $row, // Información adicional del receptor
+                ];
+                echo json_encode($respuesta);
+                exit;
+            }
+
+            // Esperar antes de verificar de nuevo
+            usleep(500000); // Esperar 0.5 segundos
+        } while (time() - $start_time < $timeout);
+
+        // Responder vacío si no hay nuevos mensajes
+        echo json_encode(['nuevosMensajes' => [], 'usuarioReceptor' => $row]);
     }
 }

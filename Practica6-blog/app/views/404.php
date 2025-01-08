@@ -13,7 +13,7 @@
         <h1 class="text-6xl font-extrabold text-gray-800">404</h1>
         <p class="text-xl text-gray-500 mt-2">¡Ups! La página que buscas no se encuentra.</p>
         <p class="text-gray-400 mt-4">Puede que haya sido movida o eliminada.</p>
-        <a href="/" class="mt-6 inline-block text-lg text-blue-500 hover:text-blue-700">Volver al inicio</a>
+        <a href="http://localhost/2DAW/Practica6-blog" class="mt-6 inline-block text-lg text-blue-500 hover:text-blue-700">Volver al inicio</a>
     </div>
 
 </body>

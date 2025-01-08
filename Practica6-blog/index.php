@@ -7,6 +7,7 @@ require_once 'vendor/autoload.php'; // Asegúrate de haber configurado Composer 
 // Obtén la ruta desde la URL
 $request = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $dir = '/2DAW/Practica6-blog';
+
 use config\Database;
 
 use models\Post;
@@ -43,7 +44,6 @@ $postController = new PostController($post, $theme, $rel_user_post, $comment);
 $homeController = new HomeController();
 $userController = new UserController($user, $rel_user_post);
 $chatController = new ChatController($user, $chat, $message);
-echo 'a';
 // Enrutamiento básico
 switch ($request) {
     case $dir . '/':
@@ -80,7 +80,7 @@ switch ($request) {
         if (comprobarRol('admin')) {
             $userController->index();
         } else {
-            header("Location: /" . __DIR__ . "/403");
+            header('Location: ' . $dir . '/403');
             exit();
         }
         break;
@@ -104,16 +104,21 @@ switch ($request) {
                 exit();
             }
         } else {
-            header("Location: /" . __DIR__ . "/403");
+            header('Location: ' . $dir . '/403');
             exit();
         }
         break;
     case (preg_match('#^' . preg_quote($dir . '/users/view/', '#') . '([a-zA-Z0-9\-]+)/?$#', $request, $matches) ? true : false):
         //chat gpt para este tipo de routing
+        if (comprobarRol('admin')) {
+            $userId = $matches[1];
+            $userController->view($userId);
+            break;
+        } else {
+            header('Location: ' . $dir . '/403');
+            exit();
+        }
 
-        $userId = $matches[1];
-        $userController->view($userId);
-        break;
 
 
     case (preg_match('#^' . preg_quote($dir . '/users/edit/', '#') . '([a-zA-Z0-9\-]+)/?$#', $request, $matches) ? true : false):
@@ -134,7 +139,7 @@ switch ($request) {
             }
 
         } else {
-            header("Location: /" . __DIR__ . "/403");
+            header('Location: ' . $dir . '/403');
             exit();
         }
 
@@ -147,7 +152,7 @@ switch ($request) {
                 $userController->handleDeleteUser($id);
             }
         } else {
-            header("Location: /" . __DIR__ . "/403");
+            header('Location: ' . $dir . '/403');
             exit();
         }
 
@@ -158,7 +163,7 @@ switch ($request) {
         if (comprobarRol('admin')) {
             $postController->indexByOwner();
         } else {
-            header("Location: /" . __DIR__ . "/403");
+            header('Location: ' . $dir . '/403');
             exit();
         }
 
@@ -201,7 +206,7 @@ switch ($request) {
             $postId = $matches[1];
             $postController->edit($postId);
         } else {
-            header("Location: /" . __DIR__ . "/403");
+            header('Location: ' . $dir . '/403');
             exit();
         }
 
@@ -215,7 +220,7 @@ switch ($request) {
                 $postController->handleDeletePost($postId);
             }
         } else {
-            header("Location: /" . __DIR__ . "/403");
+            header('Location: ' . $dir . '/403');
             exit();
         }
 
@@ -246,9 +251,12 @@ switch ($request) {
             }
         }
         break;
+    case $dir . '/index.php':
+        obtenerMensajes($user, $chat);
+        //obtenerMensajesPolling($user, $chat);
+        break;
     case $dir . '/403':
-        echo 'a';
-        /* $homeController->e403(); */
+        $homeController->e403();
         break;
     default:
         $homeController->e404();
@@ -360,6 +368,6 @@ function obtenerMensajesPolling($user, $chat)
         }
     }
 }
-//obtenerMensajesPolling($user, $chat);
-obtenerMensajes($user, $chat);
+
+
 

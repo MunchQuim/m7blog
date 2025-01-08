@@ -16,6 +16,12 @@ class HomeController
         $posts = $stmt->fetchAll(PDO::FETCH_ASSOC); */
         require_once 'app/views/home/home.php';
     }
+    public function e404(){
+        require_once 'app/views/404.php';
+    }
+    public function e403(){
+        require_once 'app/views/403.php';
+    }
     public function login(){
         require_once 'app/views/home/login.php';
     }

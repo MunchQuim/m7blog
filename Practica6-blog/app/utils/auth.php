@@ -85,7 +85,7 @@ function roleMiddleware($rolNecesario)
         $myUser = $stmt->fetch(PDO::FETCH_ASSOC);
         $db = null;
         if ($myUser['role'] != $rolNecesario) {
-            header("Location: /" . __DIR__ . "/404.php"); // cambiar a prohibido
+            header("Location: /" . __DIR__ . "/403.php");
             exit();
         }
     }

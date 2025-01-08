@@ -84,19 +84,51 @@ allBotones.forEach(btn => {
 function imprimirDatos() {
 
 }
-
+//eventualmente usar WebSockets porque esta es una solucion a muy corto plazo
 async function actualizarDatos() {
-    
+    try {
+        const response = await fetch(`index.php?id_receptor=${id_usuario_receptor}&id_usuario=${id_usuario}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+        });
+
+        const combined = await response.json();
+        let messages = combined['nuevosMensajes'];
+        let userR = combined['usuarioReceptor'];
+        document.getElementById('contact_username').innerText = userR['username'];
+        const message_area = document.getElementById('message_area');
+
+        message_area.innerHTML = "";
+        messages.forEach(message => {
+            const messageDiv = document.createElement('div');
+            if (message['chats_user1_id'] == id_usuario) {
+                messageDiv.className = 'place-self-end bg-blue-500 text-white p-2 rounded-lg max-w-xs m-2';
+            } else {
+                messageDiv.className = 'place-self-start bg-green-500 text-white p-3 rounded-lg max-w-xs';
+            }
+            messageDiv.innerText = message['message'];
+            message_area.appendChild(messageDiv);
+        });
+    }
+    catch (error) {
+        console.error('Error al actualizar:', error);
+    }
+    finally{
+        setTimeout(actualizarDatos, 1000);
+    } 
+}
+async function actualizarDatosPolling() {
+
     //depurado por chatgpt
     try {
         // Obtener los datos del usuario receptor
-       /*  try {
-            let userDataResponse = await fetch(`index.php?id_receptor=${id_usuario_receptor}`);
-            let data = await userDataResponse.json();
-            document.getElementById('contact_username').innerText = data['username'];
-        } catch (error) {
-            console.error('Error al actualizar el nombre de usuario:', error);
-        } */
+        /*  try {
+             let userDataResponse = await fetch(`index.php?id_receptor=${id_usuario_receptor}`);
+             let data = await userDataResponse.json();
+             document.getElementById('contact_username').innerText = data['username'];
+         } catch (error) {
+             console.error('Error al actualizar el nombre de usuario:', error);
+         } */
 
         // Obtener mensajes (Long Polling)
         const response = await fetch(`index.php?id_receptor=${id_usuario_receptor}&id_usuario=${id_usuario}`, {
@@ -130,10 +162,10 @@ async function actualizarDatos() {
         }
 
         // Continuar con el Long Polling
-        await actualizarDatos();
+        await actualizarDatosPolling();
     } catch (error) {
         /* console.error('Error en actualizarDatos:', error); */
         // Reintentar después de un tiempo
-        setTimeout(actualizarDatos, 5000);
+        setTimeout(actualizarDatosPolling, 5000);
     }
 }

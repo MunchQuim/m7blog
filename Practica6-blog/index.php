@@ -42,8 +42,8 @@ $db = null;
 $postController = new PostController($post, $theme, $rel_user_post, $comment);
 $homeController = new HomeController();
 $userController = new UserController($user, $rel_user_post);
-$chatController = new ChatController($user,$chat,$message);
-
+$chatController = new ChatController($user, $chat, $message);
+echo 'a';
 // Enrutamiento básico
 switch ($request) {
     case $dir . '/':
@@ -79,6 +79,9 @@ switch ($request) {
     case $dir . '/users':
         if (comprobarRol('admin')) {
             $userController->index();
+        } else {
+            header("Location: /" . __DIR__ . "/403");
+            exit();
         }
         break;
 
@@ -101,7 +104,8 @@ switch ($request) {
                 exit();
             }
         } else {
-            //redirecciona a prohibido
+            header("Location: /" . __DIR__ . "/403");
+            exit();
         }
         break;
     case (preg_match('#^' . preg_quote($dir . '/users/view/', '#') . '([a-zA-Z0-9\-]+)/?$#', $request, $matches) ? true : false):
@@ -130,7 +134,8 @@ switch ($request) {
             }
 
         } else {
-            //no permisos
+            header("Location: /" . __DIR__ . "/403");
+            exit();
         }
 
         break;
@@ -142,7 +147,8 @@ switch ($request) {
                 $userController->handleDeleteUser($id);
             }
         } else {
-            //no permisos
+            header("Location: /" . __DIR__ . "/403");
+            exit();
         }
 
         break;
@@ -152,7 +158,7 @@ switch ($request) {
         if (comprobarRol('admin')) {
             $postController->indexByOwner();
         } else {
-            header('Location: ' . $dir . '/');
+            header("Location: /" . __DIR__ . "/403");
             exit();
         }
 
@@ -195,7 +201,8 @@ switch ($request) {
             $postId = $matches[1];
             $postController->edit($postId);
         } else {
-            //no permisos
+            header("Location: /" . __DIR__ . "/403");
+            exit();
         }
 
         break;
@@ -208,7 +215,8 @@ switch ($request) {
                 $postController->handleDeletePost($postId);
             }
         } else {
-            //no permisos
+            header("Location: /" . __DIR__ . "/403");
+            exit();
         }
 
         break;
@@ -231,46 +239,35 @@ switch ($request) {
         }
         break;
     case $dir . '/messages/create':
-        // Solo muestra el formulario de creación si el método es GET
         comprobarSesion();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            if(isset($_POST['id_receptor'])&&isset($_POST['message'])&&isset($_SESSION['user_id'])){
-                $chatController->handleCreateMessage($_SESSION['user_id'],$_POST['id_receptor'],$_POST['message']);
+            if (isset($_POST['id_receptor']) && isset($_POST['message']) && isset($_SESSION['user_id'])) {
+                $chatController->handleCreateMessage($_SESSION['user_id'], $_POST['id_receptor'], $_POST['message']);
             }
         }
         break;
+    case $dir . '/403':
+        echo 'a';
+        /* $homeController->e403(); */
+        break;
+    default:
+        $homeController->e404();
+        break;
 
-    /* 
-        case $dir . '/blog':
-            $postController->index(); // el metodo del controlador me lleva a la vista
-            break; */
 
-    // Agregar más casos según sea necesario
 }
-/* if (isset($_GET['id_receptor']) && !isset($_GET['id_usuario'])) {
+function obtenerMensajes($user, $chat)
+{
+    if (isset($_GET['id_receptor']) && isset($_GET['id_usuario'])) {
+        comprobarSesion();
+        $user->id = $_GET['id_receptor'];
+        $stmt = $user->readById();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-   
+        if ($_GET['id_usuario'] == $_SESSION['user_id']) {
+            $id_usuario = $_GET['id_usuario'];
+            $id_receptor = $_GET['id_receptor'];
 
-
-} */
-if (isset($_GET['id_receptor']) && isset($_GET['id_usuario'])) {
-    //depurado chatgpt
-    comprobarSesion();
-    $user->id = $_GET['id_receptor'];
-    $stmt = $user->readById();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    
-    if ($_GET['id_usuario'] == $_SESSION['user_id']) {
-        $id_usuario = $_GET['id_usuario'];
-        $id_receptor = $_GET['id_receptor'];
-        $ultimoMensajeTimestamp = isset($_GET['last_message_timestamp']) ? $_GET['last_message_timestamp'] : 0;
-
-        $timeout = 30; // Tiempo máximo para el Long Polling
-        $start_time = time();
-
-        do {
-            // Obtener mensajes enviados y recibidos
             $chat->user1_id = $id_usuario;
             $chat->user2_id = $id_receptor;
             $stmt = $chat->getMessages();
@@ -281,31 +278,88 @@ if (isset($_GET['id_receptor']) && isset($_GET['id_usuario'])) {
             $stmt = $chat->getMessages();
             $recibidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Combinar y ordenar los mensajes
             $mensajes = array_merge($enviados, $recibidos);
             usort($mensajes, function ($a, $b) {
                 return strtotime($a['created_at']) - strtotime($b['created_at']);
             });
-
-            // Filtrar mensajes nuevos
-            $nuevosMensajes = array_filter($mensajes, function ($mensaje) use ($ultimoMensajeTimestamp) {
-                return strtotime($mensaje['created_at']) > $ultimoMensajeTimestamp;
-            });
-
-            if (!empty($nuevosMensajes)) {
+            $respuesta = [];
+            if (!empty($mensajes)) {
                 $respuesta = [
-                    'nuevosMensajes' => $nuevosMensajes,
-                    'usuarioReceptor' => $row, // Información adicional del receptor
+                    'mensajes' => $mensajes,
+                    'usuarioReceptor' => $row,
                 ];
-                echo json_encode($respuesta);
-                exit;
+
+            } else {
+                $respuesta = [
+                    'mensajes' => [],
+                    'usuarioReceptor' => $row,
+                ];
             }
+            echo json_encode($respuesta);
+            exit;
 
-            // Esperar antes de verificar de nuevo
-            usleep(500000); // Esperar 0.5 segundos
-        } while (time() - $start_time < $timeout);
-
-        // Responder vacío si no hay nuevos mensajes
-        echo json_encode(['nuevosMensajes' => [], 'usuarioReceptor' => $row]);
+        }
     }
 }
+function obtenerMensajesPolling($user, $chat)
+{
+    if (isset($_GET['id_receptor']) && isset($_GET['id_usuario'])) {
+        //depurado chatgpt
+        comprobarSesion();
+        $user->id = $_GET['id_receptor'];
+        $stmt = $user->readById();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+        if ($_GET['id_usuario'] == $_SESSION['user_id']) {
+            $id_usuario = $_GET['id_usuario'];
+            $id_receptor = $_GET['id_receptor'];
+            $ultimoMensajeTimestamp = isset($_GET['last_message_timestamp']) ? $_GET['last_message_timestamp'] : 0;
+
+            $timeout = 30; // Tiempo máximo para el Long Polling
+            $start_time = time();
+
+            do {
+                // Obtener mensajes enviados y recibidos
+                $chat->user1_id = $id_usuario;
+                $chat->user2_id = $id_receptor;
+                $stmt = $chat->getMessages();
+                $enviados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $chat->user1_id = $id_receptor;
+                $chat->user2_id = $id_usuario;
+                $stmt = $chat->getMessages();
+                $recibidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                // Combinar y ordenar los mensajes
+                $mensajes = array_merge($enviados, $recibidos);
+                usort($mensajes, function ($a, $b) {
+                    return strtotime($a['created_at']) - strtotime($b['created_at']);
+                });
+
+                // Filtrar mensajes nuevos
+                $nuevosMensajes = array_filter($mensajes, function ($mensaje) use ($ultimoMensajeTimestamp) {
+                    return strtotime($mensaje['created_at']) > $ultimoMensajeTimestamp;
+                });
+
+                if (!empty($nuevosMensajes)) {
+                    $respuesta = [
+                        'nuevosMensajes' => $nuevosMensajes,
+                        'usuarioReceptor' => $row, // Información adicional del receptor
+                    ];
+                    echo json_encode($respuesta);
+                    exit;
+                }
+
+                // Esperar antes de verificar de nuevo
+                usleep(500000); // Esperar 0.5 segundos
+            } while (time() - $start_time < $timeout);
+
+            // Responder vacío si no hay nuevos mensajes
+            echo json_encode(['nuevosMensajes' => [], 'usuarioReceptor' => $row]);
+        }
+    }
+}
+//obtenerMensajesPolling($user, $chat);
+obtenerMensajes($user, $chat);
+
